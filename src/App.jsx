@@ -43,10 +43,8 @@ function App() {
   const [{ counts, lastReset }, setState] = useState(loadInitialState);
   const [isExporting, setIsExporting] = useState(false);
 
-  // NEW: control modal visibility for summary
+  // modal + search
   const [showSummary, setShowSummary] = useState(false);
-
-  // NEW: search query state for filtering menu items
   const [query, setQuery] = useState('');
 
   const updateCounts = (updater) => {
@@ -58,10 +56,7 @@ function App() {
   };
 
   useEffect(() => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ counts, lastReset }),
-    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ counts, lastReset }));
   }, [counts, lastReset]);
 
   const rows = useMemo(
@@ -77,57 +72,76 @@ function App() {
     [counts],
   );
 
-  // NEW: filteredRows derived from rows + query (case-insensitive)
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((r) => r.name.toLowerCase().includes(q));
   }, [rows, query]);
 
-  const totalItems = useMemo(
-    () => rows.reduce((sum, row) => sum + row.quantity, 0),
-    [rows],
-  );
-  const totalAmount = useMemo(
-    () => rows.reduce((sum, row) => sum + row.total, 0),
-    [rows],
-  );
+  const totalItems = useMemo(() => rows.reduce((sum, row) => sum + row.quantity, 0), [rows]);
+  const totalAmount = useMemo(() => rows.reduce((sum, row) => sum + row.total, 0), [rows]);
 
-  const handleIncrement = (id) => {
-    updateCounts((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
-  };
-
-  const handleDecrement = (id) => {
-    updateCounts((prev) => ({
-      ...prev,
-      [id]: Math.max((prev[id] ?? 0) - 1, 0),
-    }));
-  };
-
-  const handleResetProduct = (id) => {
-    updateCounts((prev) => ({ ...prev, [id]: 0 }));
-  };
+  const handleIncrement = (id) => updateCounts((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
+  const handleDecrement = (id) => updateCounts((prev) => ({ ...prev, [id]: Math.max((prev[id] ?? 0) - 1, 0) }));
+  const handleResetProduct = (id) => updateCounts((prev) => ({ ...prev, [id]: 0 }));
 
   const handleResetDay = () => {
-    const confirmed = window.confirm(
-      'Reset the entire day? This will clear all counts.',
-    );
+    const confirmed = window.confirm('Reset the entire day? This will clear all counts.');
     if (!confirmed) return;
-
-    setState({
-      counts: { ...defaultCounts },
-      lastReset: new Date().toISOString(),
-    });
+    setState({ counts: { ...defaultCounts }, lastReset: new Date().toISOString() });
   };
 
+  // Robust export function: uses visible summaryRef if mounted, otherwise creates an off-DOM copy
   const handleExportPdf = async () => {
-    if (!summaryRef.current) return;
     setIsExporting(true);
+    let targetEl = summaryRef.current;
+    let createdTemp = false;
+    let tempContainer = null;
+
     try {
-      const canvas = await html2canvas(summaryRef.current, {
+      if (!targetEl) {
+        // create offscreen element to render the summary table
+        createdTemp = true;
+        tempContainer = document.createElement('div');
+
+        // Offscreen but renderable
+        tempContainer.style.position = 'fixed';
+        tempContainer.style.left = '-9999px';
+        tempContainer.style.top = '0';
+        tempContainer.style.padding = '16px';
+        tempContainer.style.background = '#ffffff';
+        tempContainer.style.color = '#000';
+        tempContainer.style.width = '900px';
+        tempContainer.style.boxSizing = 'border-box';
+        tempContainer.style.fontFamily = getComputedStyle(document.body).fontFamily || 'sans-serif';
+
+        // Build HTML similar to your modal table
+        let html = `<div style="font-size:16px;font-weight:700;margin-bottom:8px">Daily Order Summary</div>`;
+        html += `<div style="overflow-x:auto;border:1px solid #e6eefc;border-radius:6px;background:#fff;padding:8px">`;
+        html += `<table style="width:100%;border-collapse:collapse;font-size:13px">`;
+        html += `<thead><tr style="text-align:left;color:#334155;font-size:12px"><th style="padding:8px;border-bottom:1px solid #eef2ff">Item</th><th style="padding:8px;border-bottom:1px solid #eef2ff">Qty</th><th style="padding:8px;border-bottom:1px solid #eef2ff">Rate</th><th style="padding:8px;border-bottom:1px solid #eef2ff">Total</th></tr></thead>`;
+        html += `<tbody>`;
+        for (const row of rows) {
+          html += `<tr><td style="padding:8px;border-bottom:1px solid #f1f5f9">${row.name}</td><td style="padding:8px;border-bottom:1px solid #f1f5f9">${row.quantity}</td><td style="padding:8px;border-bottom:1px solid #f1f5f9">${formatCurrency(row.price)}</td><td style="padding:8px;border-bottom:1px solid #f1f5f9">${formatCurrency(row.total)}</td></tr>`;
+        }
+        html += `</tbody>`;
+        html += `<tfoot><tr><td style="padding:8px;font-weight:600">Total</td><td style="padding:8px;font-weight:600">${totalItems}</td><td style="padding:8px">—</td><td style="padding:8px;font-weight:600">${formatCurrency(totalAmount)}</td></tr></tfoot>`;
+        html += `</table></div>`;
+
+        tempContainer.innerHTML = html;
+        document.body.appendChild(tempContainer);
+        targetEl = tempContainer;
+      }
+
+      // allow browser to paint
+      await new Promise((res) => setTimeout(res, 60));
+
+      const canvas = await html2canvas(targetEl, {
         scale: 2,
         backgroundColor: '#ffffff',
+        useCORS: true,
       });
+
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
@@ -138,18 +152,17 @@ function App() {
       pdf.setFontSize(16);
       pdf.text('Daily Order Summary', 10, 15);
 
-      // NOTE: removed the "Last reset" line from PDF as requested
-
       const availableHeight = pageHeight - 30;
       const renderedHeight = Math.min(imgHeight, availableHeight);
       pdf.addImage(imgData, 'PNG', 10, 28, imgWidth, renderedHeight);
-      pdf.save(
-        `daily-orders-${new Date().toISOString().slice(0, 10)}.pdf`,
-      );
+      pdf.save(`daily-orders-${new Date().toISOString().slice(0, 10)}.pdf`);
     } catch (error) {
       console.error('Failed to export PDF', error);
       alert('Something went wrong while creating the PDF.');
     } finally {
+      if (createdTemp && tempContainer && tempContainer.parentNode) {
+        tempContainer.parentNode.removeChild(tempContainer);
+      }
       setIsExporting(false);
     }
   };
@@ -284,7 +297,6 @@ function App() {
             </header>
 
             <div className="summary-modal-body">
-              {/* removed visible "Last reset" display here as requested */}
               <div className="totals modal-totals">
                 <div>
                   <span className="label">Items</span>
