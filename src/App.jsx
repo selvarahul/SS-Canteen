@@ -6,6 +6,13 @@ import './App.css';
 
 const STORAGE_KEY = 'daily-orders-state';
 
+// Simple SVG placeholder encoded at runtime (no external file required)
+const PLACEHOLDER_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'>
+  <rect width='100%' height='100%' fill='%23eeeeee'/>
+  <text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23999' font-size='20'>No image</text>
+</svg>`;
+const PLACEHOLDER_DATA_URI = `data:image/svg+xml;utf8,${encodeURIComponent(PLACEHOLDER_SVG)}`;
+
 const defaultCounts = products.reduce((acc, product) => {
   acc[product.id] = 0;
   return acc;
@@ -273,8 +280,30 @@ function App() {
               filteredRows.map((item) => (
                 <article key={item.id} className="product-card">
                   <div className="product-info">
-                    <h3>{item.name}</h3>
-                    <p className="price">{formatCurrency(item.price)}</p>
+                    {/* ADDED IMAGE (public/images/...) with safe data-URI fallback */}
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      style={{
+                        width: 70,
+                        height: 70,
+                        objectFit: 'cover',
+                        borderRadius: 8,
+                        marginRight: 12,
+                        display: 'inline-block',
+                        verticalAlign: 'middle'
+                      }}
+                      onError={(e) => {
+                        // avoid infinite loop if placeholder somehow fails
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = PLACEHOLDER_DATA_URI;
+                        console.warn('Image failed, using inline placeholder for', item.image);
+                      }}
+                    />
+                    <div style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+                      <h3 style={{ margin: 0 }}>{item.name}</h3>
+                      <p className="price" style={{ margin: '4px 0 0' }}>{formatCurrency(item.price)}</p>
+                    </div>
                   </div>
                   <div className="product-controls">
                     <button
@@ -350,7 +379,26 @@ function App() {
                   <tbody>
                     {rows.map((row) => (
                       <tr key={row.id}>
-                        <td>{row.name}</td>
+                        <td style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, borderBottom: '1px solid #f1f5f9' }}>
+                          {/* ADDED IMAGE (public/images/...) with safe data-URI fallback */}
+                          <img
+                            src={row.image}
+                            alt={row.name}
+                            style={{
+                              width: 36,
+                              height: 36,
+                              objectFit: 'cover',
+                              borderRadius: 6,
+                              flexShrink: 0,
+                            }}
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = PLACEHOLDER_DATA_URI;
+                              console.warn('Summary image failed, using inline placeholder for', row.image);
+                            }}
+                          />
+                          <span>{row.name}</span>
+                        </td>
                         <td>{row.quantity}</td>
                         <td>{formatCurrency(row.price)}</td>
                         <td>{formatCurrency(row.total)}</td>
