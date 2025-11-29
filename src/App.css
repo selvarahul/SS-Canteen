@@ -10,19 +10,41 @@
   --glass: rgba(255,255,255,0.6);
   --focus: rgba(37,99,235,0.18);
   --control-border: #e6eefc;
+
+  /* Night vision accent */
+  --nv-accent: #8df27c;
+  --nv-glow: rgba(141,242,124,0.12);
+  --nv-shade: rgba(2,6,23,0.6);
 }
 
+/* DARK / NIGHT VISION theme variables */
+[data-theme="dark"] {
+  --bg-1: #081018;
+  --bg-2: #071620;
+  --card-bg: linear-gradient(180deg, rgba(8,20,24,0.9), rgba(3,10,14,0.85));
+  --muted: #9fb4a7;
+  --text: #e7ffea;
+  --accent: #7ee787;
+  --glass: rgba(255,255,255,0.03);
+  --focus: rgba(126,231,135,0.12);
+  --control-border: rgba(126,231,135,0.12);
+}
+
+/* base layout */
 * { box-sizing: border-box; }
 html,body,#root { height: 100%; margin: 0; }
 
 .app-shell {
   min-height: 100vh;
   padding: 3rem clamp(1rem, 5vw, 3rem);
-  background: radial-gradient(circle at top left, var(--bg-1) 0%, var(--bg-2) 45%, #e2e8f0 100%);
+  background:
+    radial-gradient(800px 600px at 10% 10%, rgba(37,99,235,0.06) 0%, transparent 20%),
+    linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 50%);
   color: var(--text);
   font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background 320ms ease, color 220ms ease;
 }
 
 /* Header */
@@ -60,6 +82,67 @@ html,body,#root { height: 100%; margin: 0; }
   transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
 }
 
+/* THEME TOGGLE (creative) */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  padding: 6px 8px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  border-radius: 12px;
+  transition: transform 150ms ease;
+  outline: none;
+}
+.theme-toggle:active { transform: translateY(1px); }
+
+.theme-toggle .toggle-track {
+  width: 56px;
+  height: 28px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.85), rgba(250,250,250,0.85));
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.06), inset 0 1px 0 rgba(255,255,255,0.6);
+  position: relative;
+  transition: background 220ms ease, box-shadow 220ms ease;
+}
+
+.theme-toggle .toggle-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(180deg,#fff,#f3f7ff);
+  box-shadow: 0 6px 18px rgba(2,6,23,0.08);
+  transform: translateX(0);
+  transition: transform 240ms cubic-bezier(.2,.9,.2,1), background 200ms ease;
+}
+
+/* text label */
+.theme-toggle .toggle-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+/* NIGHT-VISION visuals when dark */
+[data-theme="dark"] .theme-toggle .toggle-track {
+  background: linear-gradient(90deg, rgba(12,20,12,0.26), rgba(3,8,6,0.36));
+  box-shadow: 0 6px 28px rgba(2,6,23,0.6), inset 0 1px 0 rgba(126,231,135,0.06);
+}
+[data-theme="dark"] .theme-toggle .toggle-thumb {
+  background: radial-gradient(circle at 30% 30%, #eaffea 0%, #baf8b0 18%, #7ee787 100%);
+  box-shadow: 0 6px 30px rgba(126,231,135,0.12), 0 0 16px rgba(126,231,135,0.06);
+  transform: translateX(28px);
+}
+[data-theme="dark"] .theme-toggle .toggle-label {
+  color: var(--nv-accent);
+}
+
 /* Buttons */
 .primary {
   background: var(--accent);
@@ -85,6 +168,19 @@ html,body,#root { height: 100%; margin: 0; }
   font-weight: 600;
 }
 
+/* when dark, restyle buttons to blend with night vision */
+[data-theme="dark"] .primary {
+  background: linear-gradient(90deg,var(--nv-accent), #4bd06a);
+  box-shadow: 0 10px 30px var(--nv-glow);
+  color: #02210b;
+}
+[data-theme="dark"] .secondary {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(126,231,135,0.08);
+  color: var(--text);
+  box-shadow: none;
+}
+
 /* Content - center the product area in the viewport */
 .content {
   display: flex;
@@ -101,6 +197,7 @@ html,body,#root { height: 100%; margin: 0; }
   padding: 1.5rem;
   box-shadow: 0 18px 50px rgba(15,23,42,0.06);
   border: 1px solid rgba(15,23,42,0.03);
+  transition: background 240ms ease, border-color 220ms ease, box-shadow 220ms ease, color 220ms ease;
 }
 
 /* Product layout */
@@ -128,23 +225,17 @@ html,body,#root { height: 100%; margin: 0; }
   transition: box-shadow 140ms ease, border-color 140ms ease, transform 120ms ease;
 }
 
+[data-theme="dark"] .menu-search input[type="search"] {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  color: var(--text);
+  box-shadow: 0 6px 24px rgba(2,6,23,0.4);
+  border: 1px solid rgba(126,231,135,0.05);
+}
+
 .menu-search input[type="search"]:focus {
   border-color: var(--accent);
   box-shadow: 0 8px 30px var(--focus);
   transform: translateY(-1px);
-}
-
-/* small decorative icon container if needed later */
-.menu-search .search-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: rgba(255,255,255,0.6);
-  border: 1px solid var(--control-border);
-  color: var(--muted);
 }
 
 /* Product grid */
@@ -167,8 +258,14 @@ html,body,#root { height: 100%; margin: 0; }
   gap: 0.6rem;
   border: 1px solid var(--control-border);
   box-shadow: 0 8px 20px rgba(14, 25, 50, 0.04);
-  transition: transform 180ms ease, box-shadow 180ms ease;
+  transition: transform 180ms ease, box-shadow 180ms ease, background 220ms ease, color 220ms ease;
   outline: none;
+}
+
+[data-theme="dark"] .product-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid rgba(126,231,135,0.06);
+  box-shadow: 0 18px 40px rgba(2,6,23,0.6);
 }
 
 .product-card:hover,
@@ -200,6 +297,12 @@ html,body,#root { height: 100%; margin: 0; }
   box-shadow: inset 0 0 0 1px var(--control-border);
   cursor: pointer;
   transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+[data-theme="dark"] .product-controls button {
+  background: rgba(255,255,255,0.02);
+  box-shadow: inset 0 0 0 1px rgba(126,231,135,0.04);
+  color: var(--text);
 }
 
 .product-controls button:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(14,25,50,0.04); }
@@ -250,6 +353,12 @@ html,body,#root { height: 100%; margin: 0; }
   padding: 8px;
 }
 
+[data-theme="dark"] .table-wrapper {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid rgba(126,231,135,0.06);
+}
+
+/* table */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -262,12 +371,21 @@ th, td {
   border-bottom: 1px solid #f1f5f9;
 }
 
+[data-theme="dark"] th, [data-theme="dark"] td {
+  border-bottom: 1px solid rgba(126,231,135,0.04);
+}
+
 th {
   background: #fbfdff;
   font-size: 0.8rem;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: #475569;
+}
+
+[data-theme="dark"] th {
+  background: transparent;
+  color: var(--nv-accent);
 }
 
 tfoot td { font-weight: 700; }
@@ -302,6 +420,13 @@ tfoot td { font-weight: 700; }
   box-shadow: 0 30px 80px rgba(2,6,23,0.4);
   border: 1px solid rgba(15,23,42,0.06);
   transform-origin: top center;
+  transition: background 240ms ease, color 220ms ease;
+}
+
+[data-theme="dark"] .summary-modal {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid rgba(126,231,135,0.06);
+  box-shadow: 0 40px 100px rgba(2,6,23,0.6);
 }
 
 /* Slide-down animation */
@@ -347,6 +472,10 @@ tfoot td { font-weight: 700; }
   margin-bottom: 0.6rem;
 }
 
+[data-theme="dark"] .summary-modal-header {
+  border-bottom: 1px solid rgba(126,231,135,0.04);
+}
+
 .summary-modal-header h3 { margin: 0; font-size: 1.05rem; }
 .summary-modal .close {
   border: none;
@@ -372,6 +501,10 @@ tfoot td { font-weight: 700; }
   border-top: 1px solid #eef2ff;
 }
 
+[data-theme="dark"] .summary-modal-footer {
+  border-top: 1px solid rgba(126,231,135,0.04);
+}
+
 /* Responsive */
 @media (max-width: 1000px) {
   .product-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
@@ -384,4 +517,39 @@ tfoot td { font-weight: 700; }
   .header-actions button { width: 100%; min-width: 0; }
   .product-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
   .product-card { max-width: 100%; }
+}
+
+/* ----------------------------
+   FIX: Make summary modal and its table opaque / not transparent
+   (Only this block was added — nothing else in your original CSS changed)
+   ---------------------------- */
+
+/* Overlay: stronger dim so modal reads as a solid card above page */
+.summary-modal-overlay {
+  background: rgba(0, 0, 0, 0.55) !important;
+}
+
+/* Day-mode summary panel: solid, high-contrast card */
+.summary-modal {
+  background: #ffffff !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  box-shadow: 0 28px 80px rgba(0,0,0,0.25) !important;
+}
+
+/* Dark-mode summary panel: solid but in-night color */
+[data-theme="dark"] .summary-modal {
+  background: #0f1a20 !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+  box-shadow: 0 40px 100px rgba(0,0,0,0.7) !important;
+}
+
+/* Ensure the table wrapper inside modal is opaque as well */
+.summary-modal .table-wrapper {
+  background: #ffffff !important;
+  border: 1px solid #e5ecf9 !important;
+}
+
+[data-theme="dark"] .summary-modal .table-wrapper {
+  background: #0c141a !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
 }

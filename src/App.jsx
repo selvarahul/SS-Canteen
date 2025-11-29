@@ -43,6 +43,21 @@ function App() {
   const [{ counts, lastReset }, setState] = useState(loadInitialState);
   const [isExporting, setIsExporting] = useState(false);
 
+  // theme: night-vision toggle (persisted)
+  const [darkMode, setDarkMode] = useState(() => {
+    try {
+      return localStorage.getItem('darkMode') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('darkMode', darkMode ? 'true' : 'false');
+    } catch {}
+  }, [darkMode]);
+
   // modal + search
   const [showSummary, setShowSummary] = useState(false);
   const [query, setQuery] = useState('');
@@ -167,8 +182,18 @@ function App() {
     }
   };
 
+  // NEW: wrapper that asks for confirmation before exporting
+  const handleExportPdfWithConfirm = async () => {
+    const confirmed = window.confirm('Do you want to download the daily orders PDF now?');
+    if (!confirmed) return;
+    await handleExportPdf();
+  };
+
+  // small helper to toggle theme
+  const toggleDark = () => setDarkMode((v) => !v);
+
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-theme={darkMode ? 'dark' : 'light'}>
       <header className="app-header">
         <div>
           <h1>Daily Orders</h1>
@@ -176,7 +201,21 @@ function App() {
             Tap items as customers order and close the day with one click.
           </p>
         </div>
-        <div className="header-actions">
+        <div className="header-actions" role="toolbar" aria-label="Actions">
+          {/* NIGHT VISION / THEME TOGGLE */}
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={toggleDark}
+            aria-pressed={darkMode}
+            title={darkMode ? 'Switch to light mode' : 'Switch to night vision'}
+          >
+            <span className="toggle-track" aria-hidden>
+              <span className="toggle-thumb" />
+            </span>
+            <span className="toggle-label">{darkMode ? 'Night' : 'Day'}</span>
+          </button>
+
           <button
             type="button"
             className="secondary"
@@ -195,7 +234,7 @@ function App() {
           <button
             type="button"
             className="primary"
-            onClick={handleExportPdf}
+            onClick={handleExportPdfWithConfirm}
             disabled={isExporting}
           >
             {isExporting ? 'Preparing PDF…' : 'Export PDF'}
@@ -220,7 +259,7 @@ function App() {
                 maxWidth: '480px',
                 padding: '10px 12px',
                 borderRadius: '10px',
-                border: '1px solid #e6eefc',
+                border: '1px solid var(--control-border)',
                 outline: 'none',
                 fontSize: '14px',
               }}
@@ -254,21 +293,11 @@ function App() {
                       +
                     </button>
                   </div>
-                  <button
-                    type="button"
-                    className="link reset"
-                    onClick={() => handleResetProduct(item.id)}
-                    disabled={!item.quantity}
-                  >
-                    Reset
-                  </button>
                 </article>
               ))
             )}
           </div>
         </section>
-
-        {/* NOTE: original right-side summary section removed as requested */}
       </main>
 
       {/* Summary Modal (keeps the same table as the removed panel) */}
@@ -280,7 +309,7 @@ function App() {
           onClick={() => setShowSummary(false)}
         >
           <div
-            className="summary-modal"
+            className="summary-modal slide-down"
             onClick={(e) => e.stopPropagation()}
             aria-label="Summary details"
           >
@@ -342,7 +371,14 @@ function App() {
 
             <footer className="summary-modal-footer">
               <button type="button" onClick={() => setShowSummary(false)}>Close</button>
-              <button type="button" className="primary" onClick={() => { setShowSummary(false); setTimeout(() => handleExportPdf(), 200); }}>
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  setShowSummary(false);
+                  setTimeout(() => handleExportPdfWithConfirm(), 200);
+                }}
+              >
                 Export PDF
               </button>
             </footer>
