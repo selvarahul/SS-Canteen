@@ -1,3 +1,4 @@
+// src/App.js
 import { useEffect, useMemo, useRef, useState } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -5,8 +6,6 @@ import { products } from './data/products';
 import './App.css';
 
 const STORAGE_KEY = 'daily-orders-state';
-
-// Simple SVG placeholder encoded at runtime (no external file required)
 const PLACEHOLDER_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'>
   <rect width='100%' height='100%' fill='%23eeeeee'/>
   <text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23999' font-size='20'>No image</text>
@@ -39,7 +38,7 @@ const loadInitialState = () => {
       };
     }
   } catch (_error) {
-    // ignore malformed data
+    // ignore
   }
 
   return { counts: { ...defaultCounts }, lastReset: new Date().toISOString() };
@@ -49,8 +48,6 @@ function App() {
   const summaryRef = useRef(null);
   const [{ counts, lastReset }, setState] = useState(loadInitialState);
   const [isExporting, setIsExporting] = useState(false);
-
-  // theme: night-vision toggle (persisted)
   const [darkMode, setDarkMode] = useState(() => {
     try {
       return localStorage.getItem('darkMode') === 'true';
@@ -65,9 +62,13 @@ function App() {
     } catch {}
   }, [darkMode]);
 
-  // modal + search
   const [showSummary, setShowSummary] = useState(false);
   const [query, setQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('breakfast'); // default to breakfast as requested
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ counts, lastReset }));
+  }, [counts, lastReset]);
 
   const updateCounts = (updater) => {
     setState((prev) => {
@@ -76,10 +77,6 @@ function App() {
       return { ...prev, counts: { ...defaultCounts, ...nextCounts } };
     });
   };
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ counts, lastReset }));
-  }, [counts, lastReset]);
 
   const rows = useMemo(
     () =>
@@ -96,9 +93,18 @@ function App() {
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) => r.name.toLowerCase().includes(q));
-  }, [rows, query]);
+    return rows.filter((r) => {
+      // category filter
+      if (selectedCategory !== 'all') {
+        if (!Array.isArray(r.categories) || !r.categories.includes(selectedCategory)) {
+          return false;
+        }
+      }
+      // search filter
+      if (!q) return true;
+      return r.name.toLowerCase().includes(q);
+    });
+  }, [rows, query, selectedCategory]);
 
   const totalItems = useMemo(() => rows.reduce((sum, row) => sum + row.quantity, 0), [rows]);
   const totalAmount = useMemo(() => rows.reduce((sum, row) => sum + row.total, 0), [rows]);
@@ -113,7 +119,6 @@ function App() {
     setState({ counts: { ...defaultCounts }, lastReset: new Date().toISOString() });
   };
 
-  // Robust export function: uses visible summaryRef if mounted, otherwise creates an off-DOM copy
   const handleExportPdf = async () => {
     setIsExporting(true);
     let targetEl = summaryRef.current;
@@ -122,11 +127,8 @@ function App() {
 
     try {
       if (!targetEl) {
-        // create offscreen element to render the summary table
         createdTemp = true;
         tempContainer = document.createElement('div');
-
-        // Offscreen but renderable
         tempContainer.style.position = 'fixed';
         tempContainer.style.left = '-9999px';
         tempContainer.style.top = '0';
@@ -136,8 +138,6 @@ function App() {
         tempContainer.style.width = '900px';
         tempContainer.style.boxSizing = 'border-box';
         tempContainer.style.fontFamily = getComputedStyle(document.body).fontFamily || 'sans-serif';
-
-        // Build HTML similar to your modal table
         let html = `<div style="font-size:16px;font-weight:700;margin-bottom:8px">Daily Order Summary</div>`;
         html += `<div style="overflow-x:auto;border:1px solid #e6eefc;border-radius:6px;background:#fff;padding:8px">`;
         html += `<table style="width:100%;border-collapse:collapse;font-size:13px">`;
@@ -154,8 +154,6 @@ function App() {
         document.body.appendChild(tempContainer);
         targetEl = tempContainer;
       }
-
-      // allow browser to paint
       await new Promise((res) => setTimeout(res, 60));
 
       const canvas = await html2canvas(targetEl, {
@@ -189,27 +187,32 @@ function App() {
     }
   };
 
-  // NEW: wrapper that asks for confirmation before exporting
   const handleExportPdfWithConfirm = async () => {
     const confirmed = window.confirm('Do you want to download the daily orders PDF now?');
     if (!confirmed) return;
     await handleExportPdf();
   };
 
-  // small helper to toggle theme
   const toggleDark = () => setDarkMode((v) => !v);
+
+  // Category counts (for UI badges)
+  const categoryCounts = useMemo(() => {
+    return products.reduce((acc, p) => {
+      (p.categories || ['lunch', 'breakfast']).forEach((c) => {
+        acc[c] = (acc[c] || 0) + (counts[p.id] || 0);
+      });
+      return acc;
+    }, {});
+  }, [counts]);
 
   return (
     <div className="app-shell" data-theme={darkMode ? 'dark' : 'light'}>
       <header className="app-header">
         <div>
           <h1>Daily Orders</h1>
-          <p className="subheading">
-            Tap items as customers order and close the day with one click.
-          </p>
+          <p className="subheading">Tap items as customers order and close the day with one click.</p>
         </div>
         <div className="header-actions" role="toolbar" aria-label="Actions">
-          {/* NIGHT VISION / THEME TOGGLE */}
           <button
             type="button"
             className="theme-toggle"
@@ -223,27 +226,14 @@ function App() {
             <span className="toggle-label">{darkMode ? 'Night' : 'Day'}</span>
           </button>
 
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => setShowSummary(true)}
-          >
+          <button type="button" className="secondary" onClick={() => setShowSummary(true)}>
             Summary
           </button>
 
-          <button
-            type="button"
-            className="secondary"
-            onClick={handleResetDay}
-          >
+          <button type="button" className="secondary" onClick={handleResetDay}>
             Close Day &amp; Reset
           </button>
-          <button
-            type="button"
-            className="primary"
-            onClick={handleExportPdfWithConfirm}
-            disabled={isExporting}
-          >
+          <button type="button" className="primary" onClick={handleExportPdfWithConfirm} disabled={isExporting}>
             {isExporting ? 'Preparing PDF…' : 'Export PDF'}
           </button>
         </div>
@@ -253,24 +243,68 @@ function App() {
         <section className="product-panel">
           <h2>Menu</h2>
 
-          {/* SEARCH BAR - placed at top of the menu as requested */}
-          <div className="menu-search" style={{ marginBottom: '12px' }}>
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search menu items..."
-              aria-label="Search menu items"
-              style={{
-                width: '100%',
-                maxWidth: '480px',
-                padding: '10px 12px',
-                borderRadius: '10px',
-                border: '1px solid var(--control-border)',
-                outline: 'none',
-                fontSize: '14px',
-              }}
-            />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+            <div className="category-tabs" role="tablist" aria-label="Categories">
+              <button
+                type="button"
+                className={`tab ${selectedCategory === 'all' ? 'active' : ''}`}
+                onClick={() => setSelectedCategory('all')}
+                aria-selected={selectedCategory === 'all'}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                className={`tab ${selectedCategory === 'breakfast' ? 'active' : ''}`}
+                onClick={() => setSelectedCategory('breakfast')}
+                aria-selected={selectedCategory === 'breakfast'}
+              >
+                Breakfast
+              </button>
+              <button
+                type="button"
+                className={`tab ${selectedCategory === 'lunch' ? 'active' : ''}`}
+                onClick={() => setSelectedCategory('lunch')}
+                aria-selected={selectedCategory === 'lunch'}
+              >
+                Lunch
+              </button>
+              <button
+                type="button"
+                className={`tab ${selectedCategory === 'side dish' ? 'active' : ''}`}
+                onClick={() => setSelectedCategory('side dish')}
+                aria-selected={selectedCategory === 'side dish'}
+              >
+                Side Dish
+              </button>
+              <button
+                type="button"
+                className={`tab ${selectedCategory === 'chinese' ? 'active' : ''}`}
+                onClick={() => setSelectedCategory('chinese')}
+                aria-selected={selectedCategory === 'chinese'}
+              >
+                Chinese
+              </button>
+            </div>
+
+            <div style={{ flex: 1 }} />
+            <div style={{ width: 320 }}>
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search menu items..."
+                aria-label="Search menu items"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--control-border)',
+                  outline: 'none',
+                  fontSize: '14px',
+                }}
+              />
+            </div>
           </div>
 
           <div className="product-grid">
@@ -280,7 +314,6 @@ function App() {
               filteredRows.map((item) => (
                 <article key={item.id} className="product-card">
                   <div className="product-info">
-                    {/* ADDED IMAGE (public/images/...) with safe data-URI fallback */}
                     <img
                       src={item.image}
                       alt={item.name}
@@ -291,10 +324,9 @@ function App() {
                         borderRadius: 8,
                         marginRight: 12,
                         display: 'inline-block',
-                        verticalAlign: 'middle'
+                        verticalAlign: 'middle',
                       }}
                       onError={(e) => {
-                        // avoid infinite loop if placeholder somehow fails
                         e.currentTarget.onerror = null;
                         e.currentTarget.src = PLACEHOLDER_DATA_URI;
                         console.warn('Image failed, using inline placeholder for', item.image);
@@ -303,24 +335,15 @@ function App() {
                     <div style={{ display: 'inline-block', verticalAlign: 'middle' }}>
                       <h3 style={{ margin: 0 }}>{item.name}</h3>
                       <p className="price" style={{ margin: '4px 0 0' }}>{formatCurrency(item.price)}</p>
+                      <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>
+                        {Array.isArray(item.categories) ? item.categories.join(' • ') : '—'}
+                      </div>
                     </div>
                   </div>
                   <div className="product-controls">
-                    <button
-                      type="button"
-                      aria-label={`Remove one ${item.name}`}
-                      onClick={() => handleDecrement(item.id)}
-                    >
-                      −
-                    </button>
+                    <button type="button" aria-label={`Remove one ${item.name}`} onClick={() => handleDecrement(item.id)}>−</button>
                     <span>{item.quantity}</span>
-                    <button
-                      type="button"
-                      aria-label={`Add one ${item.name}`}
-                      onClick={() => handleIncrement(item.id)}
-                    >
-                      +
-                    </button>
+                    <button type="button" aria-label={`Add one ${item.name}`} onClick={() => handleIncrement(item.id)}>+</button>
                   </div>
                 </article>
               ))
@@ -329,7 +352,6 @@ function App() {
         </section>
       </main>
 
-      {/* Summary Modal (keeps the same table as the removed panel) */}
       {showSummary && (
         <div
           className="summary-modal-overlay"
@@ -344,12 +366,7 @@ function App() {
           >
             <header className="summary-modal-header">
               <h3>Today's Summary</h3>
-              <button
-                type="button"
-                className="close"
-                onClick={() => setShowSummary(false)}
-                aria-label="Close summary"
-              >
+              <button type="button" className="close" onClick={() => setShowSummary(false)} aria-label="Close summary">
                 ×
               </button>
             </header>
@@ -380,7 +397,6 @@ function App() {
                     {rows.map((row) => (
                       <tr key={row.id}>
                         <td style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, borderBottom: '1px solid #f1f5f9' }}>
-                          {/* ADDED IMAGE (public/images/...) with safe data-URI fallback */}
                           <img
                             src={row.image}
                             alt={row.name}

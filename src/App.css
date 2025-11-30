@@ -99,6 +99,7 @@ html,body,#root { height: 100%; margin: 0; }
 }
 .theme-toggle:active { transform: translateY(1px); }
 
+/* --- UPDATED TOGGLE TRACK & THUMB (with sun/moon icons) --- */
 .theme-toggle .toggle-track {
   width: 56px;
   height: 28px;
@@ -110,8 +111,10 @@ html,body,#root { height: 100%; margin: 0; }
   box-shadow: 0 6px 18px rgba(2,6,23,0.06), inset 0 1px 0 rgba(255,255,255,0.6);
   position: relative;
   transition: background 220ms ease, box-shadow 220ms ease;
+  flex-shrink: 0;
 }
 
+/* thumb container — holds the circular thumb and the icons */
 .theme-toggle .toggle-thumb {
   width: 22px;
   height: 22px;
@@ -119,7 +122,48 @@ html,body,#root { height: 100%; margin: 0; }
   background: linear-gradient(180deg,#fff,#f3f7ff);
   box-shadow: 0 6px 18px rgba(2,6,23,0.08);
   transform: translateX(0);
-  transition: transform 240ms cubic-bezier(.2,.9,.2,1), background 200ms ease;
+  transition: transform 240ms cubic-bezier(.2,.9,.2,1), background 200ms ease, box-shadow 200ms ease;
+  position: relative;
+  overflow: visible; /* allow icon glow */
+  display: inline-block;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+}
+
+/* icon layers inside the thumb */
+.theme-toggle .toggle-thumb::before,
+.theme-toggle .toggle-thumb::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-repeat: no-repeat;
+  background-size: contain;
+  opacity: 1;
+  transition: opacity 240ms ease, transform 240ms ease, filter 240ms ease;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 8px rgba(2,6,23,0.08));
+}
+
+/* Sun icon (shown in light mode) */
+.theme-toggle .toggle-thumb::before {
+  /* small sun inline SVG — warm yellow */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><g fill='none' stroke='%23f59e0b' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='4' fill='%23ffd87a' stroke='%23f59e0b'/><path d='M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41' stroke='%23f59e0b'/></g></svg>");
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* Moon icon (shown in dark mode) */
+.theme-toggle .toggle-thumb::after {
+  /* small moon inline SVG — pale greenish for night vision */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%237ee787' d='M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z'/></svg>");
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.85);
+  filter: drop-shadow(0 6px 14px rgba(126,231,135,0.12));
 }
 
 /* text label */
@@ -127,6 +171,7 @@ html,body,#root { height: 100%; margin: 0; }
   font-size: 0.85rem;
   color: var(--muted);
   font-weight: 600;
+  transition: color 200ms ease;
 }
 
 /* NIGHT-VISION visuals when dark */
@@ -139,6 +184,29 @@ html,body,#root { height: 100%; margin: 0; }
   box-shadow: 0 6px 30px rgba(126,231,135,0.12), 0 0 16px rgba(126,231,135,0.06);
   transform: translateX(28px);
 }
+
+/* crossfade icons: hide sun, show moon in dark mode */
+[data-theme="dark"] .theme-toggle .toggle-thumb::before {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.8);
+  filter: blur(0.2px) brightness(0.9);
+}
+[data-theme="dark"] .theme-toggle .toggle-thumb::after {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* when light mode — keep moon hidden, sun visible */
+:not([data-theme="dark"]) .theme-toggle .toggle-thumb::before {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+:not([data-theme="dark"]) .theme-toggle .toggle-thumb::after {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.85);
+}
+
+/* Label color change for night */
 [data-theme="dark"] .theme-toggle .toggle-label {
   color: var(--nv-accent);
 }
@@ -553,3 +621,146 @@ tfoot td { font-weight: 700; }
   background: #0c141a !important;
   border: 1px solid rgba(255,255,255,0.07) !important;
 }
+/* -----------------------------
+   Category tabs: All / Breakfast / Lunch
+   Paste this into your stylesheet (near header / menu-search)
+   ----------------------------- */
+
+.category-tabs {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  background: transparent;
+  padding: 4px;
+  border-radius: 12px;
+  user-select: none;
+}
+
+/* Individual tab button */
+.category-tabs .tab {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  background: transparent;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  transition: transform 160ms ease, background 180ms ease, color 160ms ease, box-shadow 180ms ease;
+  outline: none;
+  box-shadow: none;
+}
+
+/* small pill for counts (optional) */
+.category-tabs .tab .count {
+  display: inline-flex;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15,23,42,0.06);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 800;
+  border-radius: 999px;
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,0.3);
+}
+
+/* Hover / focus */
+.category-tabs .tab:hover,
+.category-tabs .tab:focus {
+  transform: translateY(-3px);
+  color: var(--text);
+  box-shadow: 0 8px 22px rgba(14,25,50,0.06);
+}
+
+/* Keyboard focus ring */
+.category-tabs .tab:focus {
+  box-shadow: 0 6px 20px var(--focus);
+  border-radius: 10px;
+}
+
+/* Active tab — filled look */
+.category-tabs .tab.active,
+.category-tabs .tab[aria-selected="true"] {
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,250,255,0.98));
+  color: var(--accent);
+  transform: translateY(0);
+  box-shadow: 0 12px 34px rgba(37,99,235,0.12);
+}
+
+/* small underline variant when you prefer thin underline instead of filled pill */
+.category-tabs.underline .tab {
+  background: transparent;
+  padding-bottom: 6px;
+}
+.category-tabs.underline .tab.active,
+.category-tabs.underline .tab[aria-selected="true"] {
+  box-shadow: none;
+  color: var(--accent);
+  position: relative;
+}
+.category-tabs.underline .tab.active::after,
+.category-tabs.underline .tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: 0;
+  height: 3px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--accent), rgba(37,99,235,0.6));
+  transform: translateY(4px);
+  transition: transform 200ms ease, opacity 200ms ease;
+}
+
+/* Dark mode styling */
+[data-theme="dark"] .category-tabs .tab {
+  color: var(--muted);
+}
+[data-theme="dark"] .category-tabs .tab .count {
+  background: rgba(255,255,255,0.02);
+  color: var(--nv-accent);
+  box-shadow: none;
+}
+[data-theme="dark"] .category-tabs .tab.active,
+[data-theme="dark"] .category-tabs .tab[aria-selected="true"] {
+  background: linear-gradient(90deg, rgba(12,20,12,0.26), rgba(3,8,6,0.36));
+  color: var(--nv-accent);
+  box-shadow: 0 10px 30px var(--nv-glow);
+}
+
+/* Small screens: make tabs use full width & wrap nicely */
+@media (max-width: 640px) {
+  .category-tabs {
+    width: 100%;
+    gap: 6px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 6px;
+  }
+  .category-tabs .tab {
+    min-width: 84px;
+    justify-content: center;
+    padding: 10px 14px;
+  }
+}
+
+/* Optional: visually hide scrollbar but keep scrollable */
+.category-tabs::-webkit-scrollbar { height: 6px; }
+.category-tabs::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 6px; }
+.category-tabs::-webkit-scrollbar-track { background: transparent; }
+
+/* Accessibility: ensure color contrast when using small count badges */
+.category-tabs .tab .count[aria-hidden="false"] {
+  font-weight: 800;
+}
+
+/* End of category-tabs styles */
